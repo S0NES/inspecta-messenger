@@ -1,0 +1,27 @@
+# Profile test (default se SPRING_PROFILES_ACTIVE nao for setado): roda local/CI sem
+# nenhuma credencial. Infra com default localhost; chaves de broker vazias -> Dispatcher cai
+# no MockAdapter por canal (fase-7) e MockHttpGateway garante que nenhuma chamada HTTP real
+# sai do processo, mesmo que uma credencial seja setada por engano.
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/inspecta}
+    username: ${DATABASE_USER:inspecta}
+    password: ${DATABASE_PASSWORD:inspecta}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:inspecta}
+    password: ${RABBITMQ_PASSWORD:inspecta}
+
+inspecta:
+  notify:
+    resend-api-key: ${RESEND_API_KEY:}
+    resend-from: ${RESEND_FROM:Inspecta <noreply@example.com>}
+    infobip-api-key: ${INFOBIP_API_KEY:}
+    expo-access-token: ${EXPO_ACCESS_TOKEN:}
+  webhooks:
+    resend-webhook-secret: ${RESEND_WEBHOOK_SECRET:}
+    infobip-webhook-secret: ${INFOBIP_WEBHOOK_SECRET:}
+    expo-webhook-secret: ${EXPO_WEBHOOK_SECRET:}

@@ -1,0 +1,10 @@
+# Runtime-only image for the LOCAL all-Docker dev stack (docker-compose.local.yml).
+# Jar built on the host (mvn package) — no Reposilite needed. Prod uses ./Dockerfile.
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+RUN apk add --no-cache wget
+COPY target/*.jar app.jar
+EXPOSE 4100
+HEALTHCHECK --interval=15s --timeout=3s --retries=10 --start-period=60s \
+  CMD wget -qO- http://localhost:4100/actuator/health | grep -q UP || exit 1
+ENTRYPOINT ["java","-XX:MaxRAMPercentage=75","-jar","app.jar"]

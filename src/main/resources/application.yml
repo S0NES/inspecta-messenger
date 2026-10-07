@@ -1,0 +1,84 @@
+server:
+  port: 4100
+  shutdown: graceful
+  forward-headers-strategy: framework   # Traefik = trusted proxy
+
+spring:
+  application:
+    name: inspecta-messenger
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:test}
+  jpa:
+    hibernate:
+      ddl-auto: validate      # schema notify vem do Flyway (V5), executado pelo inspecta-api
+    open-in-view: false
+  flyway:
+    enabled: false
+  datasource:
+    hikari:
+      maximum-pool-size: 10     # q.notify + q.storage + q.signature-create + q.signature-webhook + schedulers + headroom (T7.9)
+      minimum-idle: 2
+      # PG do ambiente derruba conexão ociosa (idle_session_timeout). keepalive-time toca
+      # as conexões ociosas (reseta o timer do PG); max-lifetime aposenta antes do PG matar.
+      keepalive-time: 120000    # 2 min — < idle_session_timeout do PG
+      max-lifetime: 600000      # 10 min
+
+inspecta:
+  outbox:
+    relay:
+      # inspecta-messenger grava no outbox_eventos (metricas + webhooks de terceiros que recebe na borda),
+      # mas NAO roda relay proprio: o relay unico vive no inspecta-api e drena a base compartilhada.
+      enabled: false
+  webhooks:
+    resend-webhook-secret: ${RESEND_WEBHOOK_SECRET:}
+    infobip-webhook-secret: ${INFOBIP_WEBHOOK_SECRET:}
+    expo-webhook-secret: ${EXPO_WEBHOOK_SECRET:}
+    # Assinatura (Autentique) e pagamento (AbacatePay) — a borda de webhook e o inspecta-messenger.
+    # Default vazio vale so para test/ci/local; em prod e obrigatorio (application-prod.yml).
+    autentique-webhook-secret: ${AUTENTIQUE_WEBHOOK_SECRET:}
+    abacatepay-webhook-secret: ${ABACATEPAY_WEBHOOK_SECRET:}
+  signature:
+    # Broker de assinatura ativo: nome do bean SignatureBroker ("mock" | "autentique").
+    # O inspecta-messenger monta+envia o createDocument, processa o webhook e baixa o PDF assinado.
+    broker: ${SIGNATURE_BROKER:mock}
+    autentique:
+      api-key: ${AUTENTIQUE_API_KEY:}
+      api-url: ${AUTENTIQUE_API_URL:https://api.autentique.com.br/v2/graphql}
+      # ausente/"false" = producao (chamada real); "true" = sandbox (nao consome creditos).
+      sandbox: ${AUTENTIQUE_SANDBOX:false}
+  storage:
+    # Provider ativo: nome do bean FileStorage ("local" ou "s3"). "local" e um default seguro
+    # zero-config (grava em disco), por isso nao e fail-fast em prod como PAYMENT_PROVIDER/PLENO_MODE.
+    provider: ${STORAGE_PROVIDER:local}
+    local:
+      base-path: ${STORAGE_LOCAL_BASE_PATH:./data/uploads}
+    s3:
+      bucket: ${STORAGE_S3_BUCKET:inspecta}
+      region: ${STORAGE_S3_REGION:us-east-1}
+      endpoint: ${STORAGE_S3_ENDPOINT:}
+      access-key: ${STORAGE_S3_ACCESS_KEY:}
+      secret-key: ${STORAGE_S3_SECRET_KEY:}
+      # T7.2 (historico): MinIO/self-host precisa disto explicitamente true, SDK nao infere so
+      # por causa do endpoint override.
+      path-style-access: ${STORAGE_S3_PATH_STYLE:true}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+    # Readiness group: only database is genuinely blocking
+    # Exclude AMQP — consumed asynchronously, not required for readiness
+    db:
+      enabled: true
+    rabbit:
+      enabled: false

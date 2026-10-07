@@ -1,0 +1,42 @@
+# Profile prod: sem default de infra. Env var faltando = falha no boot (fail-fast), nunca
+# sobe apontando pra localhost por engano. RealHttpGateway fica ativo (saida HTTP de verdade
+# para os brokers). Credencial de broker continua opcional por canal (fallback mock, fase-7).
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT}
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+
+inspecta:
+  notify:
+    resend-api-key: ${RESEND_API_KEY:}
+    resend-from: ${RESEND_FROM:Inspecta <noreply@example.com>}
+    infobip-api-key: ${INFOBIP_API_KEY:}
+    expo-access-token: ${EXPO_ACCESS_TOKEN:}
+  webhooks:
+    resend-webhook-secret: ${RESEND_WEBHOOK_SECRET}
+    infobip-webhook-secret: ${INFOBIP_WEBHOOK_SECRET}
+    expo-webhook-secret: ${EXPO_WEBHOOK_SECRET}
+    # Sem default: env var ausente derruba o boot (fail-fast), igual aos demais segredos de webhook.
+    autentique-webhook-secret: ${AUTENTIQUE_WEBHOOK_SECRET}
+    abacatepay-webhook-secret: ${ABACATEPAY_WEBHOOK_SECRET}
+  signature:
+    broker: ${SIGNATURE_BROKER}
+    autentique:
+      api-key: ${AUTENTIQUE_API_KEY}
+      api-url: ${AUTENTIQUE_API_URL:https://api.autentique.com.br/v2/graphql}
+      sandbox: ${AUTENTIQUE_SANDBOX:false}
+
+# inspecta-messenger e a borda publica de webhook e nao tem Spring Security — em prod so o health fica
+# exposto no host publico. info/metrics (uteis em dev, vem do application.yml base) sairiam sem
+# autenticacao. Nada raspa metricas do inspecta-messenger hoje.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
